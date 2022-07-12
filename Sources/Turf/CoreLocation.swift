@@ -81,7 +81,14 @@ extension LocationCoordinate2D {
             longitude: longitude.wrap(min: -180, max: 180)
         )
     }
-}
+    
+    /**
+     Returns true if the specified coordinate is valid, false otherwise.
+     */
+    var isValid: Bool {
+        CLLocationCoordinate2DIsValid(self)
+    }
+ }
 
 extension LocationDirection {
     /**
