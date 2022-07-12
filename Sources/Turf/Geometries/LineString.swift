@@ -19,7 +19,9 @@ public struct LineString: Equatable, ForeignMemberContainer {
      
      - parameter coordinates: The positions at which the line string is located.
      */
-    public init(_ coordinates: [LocationCoordinate2D]) {
+    public init(_ coordinates: [LocationCoordinate2D]) throws {
+        guard coordinates.count > 1 else { throw GeometryError.invalidNumberOfPoints }
+        guard coordinates.filter({ !$0.isValid }).isEmpty else { throw GeometryError.invalidCoordinate }
         self.coordinates = coordinates
     }
     
@@ -85,7 +87,7 @@ extension LineString {
         let coords = stride(from: 0, to: resolution, by: 10)
             .filter { Int(floor(Double($0) / 100)) % 2 == 0 }
             .map { spline.position(at: $0).coordinate }
-        return LineString(coords)
+        return try? LineString(coords)
     }
     
     /**
@@ -107,7 +109,7 @@ extension LineString {
                 let overshoot = startDistance - traveled
                 if overshoot == 0.0 {
                     slice.append(coordinates[i])
-                    return LineString(slice)
+                    return try? LineString(slice)
                 }
                 let direction = coordinates[i].direction(to: coordinates[i - 1]) - 180
                 let interpolated = coordinates[i].coordinate(at: overshoot, facing: direction)
@@ -118,12 +120,12 @@ extension LineString {
                 let overshoot = stopDistance - traveled
                 if overshoot == 0.0 {
                     slice.append(coordinates[i])
-                    return LineString(slice)
+                    return try? LineString(slice)
                 }
                 let direction = coordinates[i].direction(to: coordinates[i - 1]) - 180
                 let interpolated = coordinates[i].coordinate(at: overshoot, facing: direction)
                 slice.append(interpolated)
-                return LineString(slice)
+                return try? LineString(slice)
             }
             
             if traveled >= startDistance {
@@ -131,7 +133,7 @@ extension LineString {
             }
             
             if i == coordinates.count - 1 {
-                return LineString(slice)
+                return try? LineString(slice)
             }
             
             traveled += distance(from: coordinates[i], to: coordinates[i + 1]) ?? 0.0
@@ -140,7 +142,7 @@ extension LineString {
         if traveled < startDistance { return nil }
         
         if let last = coordinates.last {
-            return LineString([last, last])
+            return try? LineString([last, last])
         }
         
         return nil
@@ -188,7 +190,7 @@ extension LineString {
             }
         }
         assert(round(cumulativeDistance) <= round(abs(distance)))
-        return LineString(vertices)
+        return try? LineString(vertices)
     }
     
     /**
@@ -290,7 +292,7 @@ extension LineString {
             coords.append(ends.1.coordinate)
         }
         
-        return LineString(coords)
+        return try? LineString(coords)
     }
     
     /**
@@ -356,9 +358,9 @@ extension LineString {
      */
     public func simplified(tolerance: Double = 1.0, highestQuality: Bool = false) -> LineString {
         // Ported from https://github.com/Turfjs/turf/blob/4e8342acb1dbd099f5e91c8ee27f05fb2647ee1b/packages/turf-simplify/lib/simplify.js
-        guard coordinates.count > 2 else { return LineString(coordinates) }
+        guard coordinates.count > 2 else { return self }
 
-        var copy = LineString(coordinates)
+        guard var copy = try? LineString(coordinates) else { return self }
         copy.simplify(tolerance: tolerance, highestQuality: highestQuality)
         return copy
     }
